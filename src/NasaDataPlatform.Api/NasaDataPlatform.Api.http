@@ -1,0 +1,6 @@
+@NasaDataPlatform.Api_HostAddress = http://localhost:5245
+
+GET {{NasaDataPlatform.Api_HostAddress}}/
+Accept: application/json
+
+###
