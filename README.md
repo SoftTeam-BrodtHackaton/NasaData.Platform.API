@@ -1,12 +1,14 @@
 # NASA Data Platform — MVP educativo
 
-Backend sobre la solución existente `nasa-data-platform.sln`, proyecto único `NasaDataPlatform.API`, .NET 9, Controllers y EF Core/MySQL. Solo hay dos bounded contexts: Missions y Students, ambos con Application, Domain, Infrastructure e Interfaces. No se añadieron paquetes ni otra base de datos.
+Backend web en `src/NasaDataPlatform.Api` (`nasa-data-platform.sln`), .NET 9, Controllers y EF Core/MySQL. Dos bounded contexts: Missions y Students, ambos con Application, Domain, Infrastructure e Interfaces. No se añadieron paquetes ni otra base de datos a este proyecto.
+
+La solución incluye además las librerías de extracción NASA (`src/NasaDataPlatform.Dominio`, `src/NasaDataPlatform.Infraestructura`) y sus tests (`tests/NasaDataPlatform.*.Tests`), incorporadas al fusionar la rama de arquitectura hexagonal. Todavía no están referenciadas por `src/NasaDataPlatform.Api` (ver "Flujo e integración").
 
 ## Estado inicial y alcance
 
 Missions y Students estaban vacíos. Se reutilizaron `IBaseRepository`, `IUnitOfWork`, `BaseRepository`, `UnitOfWork`, `AppDbContext`, la convención de rutas, Swagger y la política CORS. La infraestructura real está en `Shared/Infrastructure`, y se conserva allí. Había cambios locales anteriores a esta implementación que se preservaron.
 
-**No existe extracción NASA/DONKI/JPL en este checkout.** No fue posible conectar código del compañero que todavía no está aquí. No se inventaron URLs ni se reimplementó esa extracción. La demostración utiliza dos fixtures de desarrollo en `appsettings.Development.json`, siempre con `source.realData=false` y `system=EDUCATIONAL_FIXTURE`.
+**La extracción NASA/DONKI/JPL ya está en el repo** (`src/NasaDataPlatform.Infraestructura`: adaptadores DONKI y JPL CAD, respaldo por fixtures y caché en memoria) pero **aún no se ha conectado** a `IScientificEventPort`. Mientras tanto la demostración sigue usando dos fixtures de desarrollo en `appsettings.Development.json`, siempre con `source.realData=false` y `system=EDUCATIONAL_FIXTURE`.
 
 El proyecto de referencia se consultó únicamente para distribución de carpetas, composición y convenciones; no se modificó ni se copió su dominio.
 
@@ -17,12 +19,12 @@ Desde la raíz, con .NET SDK 9 y MySQL disponible:
 ```powershell
 dotnet restore nasa-data-platform.sln
 dotnet build nasa-data-platform.sln --no-restore
-dotnet run --project NasaDataPlatform.API/NasaDataPlatform.API.csproj --no-build --launch-profile http
+dotnet run --project src/NasaDataPlatform.Api/NasaDataPlatform.Api.csproj --no-build --launch-profile http
 ```
 
 El perfil `http` existente escucha en **http://localhost:8000**. Swagger: http://localhost:8000/swagger.
 
-La conexión local existente se conservó en `NasaDataPlatform.API/appsettings.Local.json`, ignorado por Git y excluido de publicación. Se retiró del archivo versionado y se desactivó el logging de valores sensibles de EF. En otra máquina configura `ConnectionStrings__DefaultConnection` mediante variables de entorno, o un `appsettings.Local.json` privado en Development. No subas credenciales. Las variables de entorno y argumentos prevalecen sobre el archivo local. En producción ese archivo no se carga.
+La conexión local existente se conservó en `src/NasaDataPlatform.Api/appsettings.Local.json`, ignorado por Git y excluido de publicación. Se retiró del archivo versionado y se desactivó el logging de valores sensibles de EF. En otra máquina configura `ConnectionStrings__DefaultConnection` mediante variables de entorno, o un `appsettings.Local.json` privado en Development. No subas credenciales. Las variables de entorno y argumentos prevalecen sobre el archivo local. En producción ese archivo no se carga.
 
 La base MySQL utiliza el mismo `AppDbContext` y `EnsureCreatedAsync` del enfoque original. Se crean tablas `missions`, `students` y `mission_attempts` en una base vacía. **No hay migraciones**: `EnsureCreated` no actualiza esquemas existentes; una base con tablas previas incompatibles requiere una migración revisada. No se borra ni reinicia una base existente.
 
@@ -45,7 +47,7 @@ Tipos: `SOLAR_STORM`, `PLANETARY_DEFENSE`. Dificultades: `EASY`, `MEDIUM`, `HARD
 
 `MissionsController → MissionService → IScientificEventPort → adapter → Mission.Generate → IMissionRepository → IUnitOfWork`.
 
-`IScientificEventPort` es el punto para conectar la extracción del compañero: recibe `eventId` y tipo y devuelve datos normalizados `ScientificEvent`, o null si no existe el evento. Al incorporar la integración, implementar ese puerto en Missions/Infrastructure y sustituir su registro en `AddMissions`. `ScientificData` actualmente necesita fecha y clasificación solar o nombre del objeto. `MissionSource` conserva proveedor, sistema, identificador y si son datos reales. El Domain no depende de HTTP, EF ni JSON externo.
+`IScientificEventPort` es el punto para conectar la extracción real, que ya está en `src/NasaDataPlatform.Infraestructura` (`IProveedorClimaEspacial`, `IProveedorAcercamientos`). Recibe `eventId` y tipo y devuelve datos normalizados `ScientificEvent`, o null si no existe el evento. Para integrarla: (1) referenciar `src/NasaDataPlatform.Infraestructura` desde `src/NasaDataPlatform.Api` —hoy bloqueado porque el API es net9.0 y las librerías net10.0, hay que unificar el TargetFramework—; (2) los proveedores hexagonales hacen búsqueda por rango de fechas, no lookup por `eventId`, así que el adaptador debe resolver esa diferencia; (3) implementar el puerto en `Missions/Infrastructure` y sustituir su registro en `AddMissions`. `ScientificData` actualmente necesita fecha y clasificación solar o nombre del objeto. `MissionSource` conserva proveedor, sistema, identificador y si son datos reales. El Domain no depende de HTTP, EF ni JSON externo.
 
 El adapter actual busca los fixtures configurados únicamente en Development cuando `Missions:EnableFixtures=true`. No sustituye silenciosamente un evento desconocido por uno simulado: devuelve 404. Con fixtures deshabilitados o fuera de Development, generar devuelve 503 hasta disponer de una integración. Las misiones ya persistidas siguen disponibles.
 
@@ -82,11 +84,11 @@ Invoke-RestMethod "$base/api/students/USER-001/progress"
 Invoke-RestMethod "$base/api/students/USER-001/profile"
 ```
 
-Si USER-001 ya completó esa misión, recibirá 0 puntos adicionales. También hay solicitudes listas en `NasaDataPlatform.API/NasaDataPlatform.API.http` para Rider.
+Si USER-001 ya completó esa misión, recibirá 0 puntos adicionales. También hay solicitudes listas en `src/NasaDataPlatform.Api/NasaDataPlatform.Api.http` para Rider.
 
 ## Verificación
 
-No había proyectos ni framework de tests. `dotnet test nasa-data-platform.sln --no-restore` termina sin tests descubiertos. Para mantener una sola solución y un solo proyecto se añadieron comprobaciones sin dependencias:
+`dotnet test nasa-data-platform.sln` ejecuta los proyectos xUnit `NasaDataPlatform.Dominio.Tests` y `NasaDataPlatform.Infraestructura.Tests` (38 pruebas de las librerías de extracción). El proyecto web `src/NasaDataPlatform.Api` no tiene proyecto de test propio; sus comprobaciones son los scripts sin dependencias de abajo:
 
 ```powershell
 # Después del build; compila el ejecutable de comprobación con Roslyn del SDK en obj/MvpChecks.
@@ -98,4 +100,4 @@ No había proyectos ni framework de tests. `dotnet test nasa-data-platform.sln -
 
 Resultados comprobados: build sin errores ni advertencias; 14 comprobaciones de dominio, 30 comprobaciones HTTP y dos escenarios de 12 respuestas concurrentes. Se verificó persistencia tras reiniciar el proceso. Las pruebas HTTP crean estudiantes `SMOKE-*` y `CONCURRENT-*` y conservan sus registros; no eliminan datos. Las pruebas de dominio incluyen saturación de skills a 100 tras 150 misiones adicionales.
 
-La limitación funcional pendiente es conectar la extracción científica real cuando esté disponible en el repositorio. El flujo educativo completo funciona con los fixtures identificados.
+La limitación funcional pendiente es conectar la extracción científica real (ya presente en `src/NasaDataPlatform.Infraestructura`) a `IScientificEventPort`; requiere unificar el TargetFramework net9.0/net10.0 y resolver la diferencia búsqueda-por-fecha vs lookup-por-`eventId`. El flujo educativo completo funciona con los fixtures identificados.

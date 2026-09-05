@@ -4,8 +4,6 @@
         <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>NasaDataPlatform.Api</RootNamespace>
-        <AssemblyName>NasaDataPlatform.Api</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
@@ -30,8 +28,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Missions\" />
-      <Folder Include="Students\" />
       <Content Update="appsettings.Local.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
     </ItemGroup>
 

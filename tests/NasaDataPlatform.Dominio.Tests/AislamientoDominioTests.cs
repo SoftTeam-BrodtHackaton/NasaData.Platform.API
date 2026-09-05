@@ -25,7 +25,7 @@ public class AislamientoDominioTests
 
     private static string ResolverRutaCsprojDominio()
     {
-        // bin/Debug/net10.0 -> NasaDataPlatform.Dominio.Tests -> tests -> raíz de la solución
+        // bin/Debug/net9.0 -> NasaDataPlatform.Dominio.Tests -> tests -> raíz de la solución
         var raizSolucion = Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
